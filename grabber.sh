@@ -1,14 +1,26 @@
 #!/bin/bash
 
 
+##Helper function to create hostID file
 if [ "$#" -gt 1 ] && [ $1 == '-h' ]
 then
     echo $2 > hostID 
     exit 0
 fi
 
+##Check to see if end server is alive
+
+
 FRAME_SERVER="127.0.0.1:1225/frame"
+HEALTHCHECK=$(curl -s $FRAME_SERVER/healthcheck)
+
+if [ $HEALTHCHECK != "GOOD" ]
+then
+  exit 1
+fi
+
 MANIFEST_FILE="manifest.json"
+MANIFEST_CLIENT="client_manifest.json"
 HOSTID=$(cat hostID)
 FIRST_RUN=0
 
@@ -16,6 +28,7 @@ GET_MANIFEST=$(curl -s $FRAME_SERVER/$HOSTID)
 
 GET_MANIFEST_FILE(){
     echo $GET_MANIFEST > $MANIFEST_FILE
+    echo "data='$(cat $MANIFEST_FILE)'" > $MANIFEST_CLIENT 
 }
 
 
