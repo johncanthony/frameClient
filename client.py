@@ -7,7 +7,7 @@ import requests
 class ClientManifest(ImgManifest):
 
     _CLIENT_MANIFEST_FILE = './client_manifest.json'
-
+    
 
     '''
     Params :
@@ -54,7 +54,7 @@ class FrameClient(object):
     def __init__(self):
 
         if not self._file_exists(self._HOSTID_FILE):
-            self.create_hostID()
+            self._create_hostID()
 
         self.frameID = self._get_HostID()
         self.images = []
@@ -77,7 +77,7 @@ class FrameClient(object):
 
         if id_str != None:
             try:
-                with open(if_file,'w') as hostIdFile:
+                with open(self._HOSTID_FILE,'w') as hostIdFile:
                     hostIdFile.write(id_str.strip())
             except EnvironmentError, err:
                 pass
@@ -101,6 +101,7 @@ class FrameClient(object):
 
 class FrameRequestHandler:
     _URL_ROOT = 'http://frame.mroots.io/frame'
+    _IMG_ROOT = './IMG'
 
     def __init__(self,frameID=None):
         self._frame_id = frameID
@@ -114,27 +115,44 @@ class FrameRequestHandler:
         return False
 
     def download_image(self, img_filename):
-        pass
+        data = None
+
+        request_string ="{}/{}/img/{}".format(self_URL_ROOT,self._frame_id,img_filename)
+        r = requests.get(request_string)
+
+        if r.status_code is 200:
+            data = r.content
+
+        return data
 
     def save_image(self, img_filename, data):
-        pass
+        saved = False
+        img_filepath = '{}/{}'.format(self._URL_ROOT,img_filename)
+
+        try:
+            with open(img_filepath,'wb') as imgFile:
+                imgFile.write(data)
+            saved = True
+        except EnvironmentError, err:
+            pass
+
+        return saved
+
 
     def dl_manifest(self):
+        manifest_text = None
+
         r = requests.get("{}/{}".format(self._URL_ROOT,self._frame_id))
-        return r.text
+        if r.status_code == 200:
+            manifest_text = r.text
 
-
+        return manifest_text
 
 
 if __name__ == "__main__":
 
     frame = FrameClient()
     print(frame.frameID)
-    data = None
-    x = FrameRequestHandler(frame.frameID)
-    if(x._is_server_healthy()):
-        data = x.dl_manifest()
-        print(data)
-    else:
-        print("Frame server not responding")
 
+    manifest = ClientManifest(frame.frameID)
+    
