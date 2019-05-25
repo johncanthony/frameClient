@@ -160,39 +160,10 @@ class DataHandler():
         return data
 
 
-    def del_image_file(self,filename):
-
-        file_path = "{}/{}".format(self.UPLOAD_FOLDER,filename)
-
-        if not self._exists(file_path):
-            return None
-
-        try:
-            os.remove(file_path)
-        except EnvrionmentError:
-            return None
-
-        return filename
-
 
     def __str__(self):
 
         return str(self.id)
 
 
-if __name__ == "__main__":
-
-    x = ImgManifest("home_frame")
-    y = DataHandler("home_frame")
-
-
-    data = x.read()
-
-    if(filename in data.keys()):
-
-        status = y.del_image_file("002.jpg")
-        print(status)
-
-    if (status != None):
-        x.del_img("002.jpg")
 

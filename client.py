@@ -2,6 +2,7 @@ import os
 from DataHandler import ImgManifest 
 from uuid import uuid4
 import json
+import requests
 
 class ClientManifest(ImgManifest):
 
@@ -53,7 +54,7 @@ class FrameClient(object):
     def __init__(self):
 
         if not self._file_exists(self._HOSTID_FILE):
-            self.creat_hostID()
+            self.create_hostID()
 
         self.frameID = self._get_HostID()
         self.images = []
@@ -90,20 +91,27 @@ class FrameClient(object):
 
         try:
             with open(self._HOSTID_FILE) as hostIdFile:
-                hostIdFile.read()
+                host_id = hostIdFile.read()
 
         except EnvironmentError, err:
             pass
 
-        return host_id
+        return host_id.strip()
 
 
 class FrameRequestHandler:
-    URL_ROOT = 'http://frame.mroots.io'
+    _URL_ROOT = 'http://frame.mroots.io/frame'
 
     def __init__(self,frameID=None):
-        self.frame_id = frameID
+        self._frame_id = frameID
 
+    def _is_server_healthy(self):
+        r = requests.get("{}/{}".format(self._URL_ROOT,'healthcheck'))
+
+        if r.status_code is 200:
+            return True
+
+        return False
 
     def download_image(self, img_filename):
         pass
@@ -112,6 +120,21 @@ class FrameRequestHandler:
         pass
 
     def dl_manifest(self):
-        pass
+        r = requests.get("{}/{}".format(self._URL_ROOT,self._frame_id))
+        return r.text
 
+
+
+
+if __name__ == "__main__":
+
+    frame = FrameClient()
+    print(frame.frameID)
+    data = None
+    x = FrameRequestHandler(frame.frameID)
+    if(x._is_server_healthy()):
+        data = x.dl_manifest()
+        print(data)
+    else:
+        print("Frame server not responding")
 
