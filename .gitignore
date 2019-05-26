@@ -1,0 +1,12 @@
+# Don't track content of these folders
+frameClient/
+IMG/
+CONFIG/
+
+# Compiled source #
+###################
+*.pyc
+
+# MISC files from application #
+###############################
+*.json
