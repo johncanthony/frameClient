@@ -7,7 +7,12 @@ import requests
 class ClientManifest(ImgManifest):
 
     _CLIENT_MANIFEST_FILE = './client_manifest.json'
-    
+    _CONFIG_PATH = "."
+
+    def __init__(self,idstr):
+
+        self._id = idstr
+        self._filename="{}/manifest.json".format(self._CONFIG_PATH)
 
     '''
     Params :
@@ -33,22 +38,34 @@ class ClientManifest(ImgManifest):
             compare old checksum to the new checksum
             return bool
         '''
+        self_manifest = self.read()
+        return self_manifest['checksum'] != new_manifest['checksum']
 
-        pass
+
 
     def _diff_manifests(self, new_manifest):
         '''
         new_manifest needs to be in a json.load[s]() object
-            check for file discrepancies between the two 
+            check for file discrepancies between the two
             for each in new_manifest.data:
                 if self.manifest.get(each, None) == None:
                     add removable image to return list
         '''
-        pass
+        self_manifest = self.read()
+        manifest_files = self_manifest['data'].keys()
+        new_manifest_files = new_manifest['data'].keys()
+
+        diffs = {"delete":[],"download":[]}
+
+        diffs['delete'] = list( set(manifest_files) - set(new_manifest_files) )
+        diffs['download'] = list( set(new_manifest_files) - set(manifest_files) )
+
+        return diffs
 
 
 class FrameClient(object):
 
+    _IMG_ROOT = './IMG'
     _HOSTID_FILE = './hostID'
 
     def __init__(self):
@@ -84,6 +101,19 @@ class FrameClient(object):
 
         return id_str
 
+    def save_image(self, img_filename, data):
+        saved = False
+        img_filepath = '{}/{}'.format(self._IMG_ROOT,img_filename)
+
+        try:
+            with open(img_filepath,'wb') as imgFile:
+                imgFile.write(data)
+            saved = True
+        except EnvironmentError, err:
+            pass
+
+        return saved
+
 
     def _get_HostID(self):
 
@@ -101,7 +131,6 @@ class FrameClient(object):
 
 class FrameRequestHandler:
     _URL_ROOT = 'http://frame.mroots.io/frame'
-    _IMG_ROOT = './IMG'
 
     def __init__(self,frameID=None):
         self._frame_id = frameID
@@ -117,7 +146,7 @@ class FrameRequestHandler:
     def download_image(self, img_filename):
         data = None
 
-        request_string ="{}/{}/img/{}".format(self_URL_ROOT,self._frame_id,img_filename)
+        request_string ="{}/{}/img/{}".format(self._URL_ROOT,self._frame_id,img_filename)
         r = requests.get(request_string)
 
         if r.status_code is 200:
@@ -125,19 +154,14 @@ class FrameRequestHandler:
 
         return data
 
-    def save_image(self, img_filename, data):
-        saved = False
-        img_filepath = '{}/{}'.format(self._URL_ROOT,img_filename)
+    def create_manifest(self):
 
-        try:
-            with open(img_filepath,'wb') as imgFile:
-                imgFile.write(data)
-            saved = True
-        except EnvironmentError, err:
-            pass
+        r = requests.post('{}/{}'.format(self._URL_ROOT,self._frame_id))
 
-        return saved
+        if r.status_code != 200:
+            return None
 
+        return r.text
 
     def dl_manifest(self):
         manifest_text = None
@@ -153,6 +177,24 @@ if __name__ == "__main__":
 
     frame = FrameClient()
     print(frame.frameID)
+    requester = FrameRequestHandler(frame.frameID)
+    requester.dl_manifest()
 
-    manifest = ClientManifest(frame.frameID)
-    
+    if(requester._is_server_healthy()):
+
+        newManifest = json.loads(requester.dl_manifest())
+
+        manifest = ClientManifest(frame.frameID)
+
+        if not manifest._manifest_exists(manifest._filename):
+            manifest.write(newManifest)
+
+        if(manifest._is_new_manifest(newManifest)):
+            print("All the things changed!")
+            print(manifest._diff_manifests(newManifest))
+        '''
+        data = json.loads(manifest.read())
+        for img in data['data']:
+            image_binary = requester.download_image(img)
+            print(frame.save_image(img,image_binary))
+        '''
