@@ -10,7 +10,7 @@ class ImgManifest():
     _CONFIG_PATH='CONFIG'
     _IMG_PATH='IMG'
 
-    def __init__(self,idstr):
+    def __init__(self,idstr=None):
 
         self._id = idstr
         self._filename="{}/{}.json".format(self._CONFIG_PATH,self._id)
@@ -159,6 +159,18 @@ class DataHandler():
 
         return data
 
+
+    def delete_image_file(self,filename):
+
+        file_path = "{}/{}".format(self.UPLOAD_FOLDER,filename)
+
+        if not self._exists(file_path):
+            return
+
+        try:
+            os.remove((file_path))
+        except OSError, err:
+            return
 
 
     def __str__(self):

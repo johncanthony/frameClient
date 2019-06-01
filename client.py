@@ -1,8 +1,10 @@
 import os
-from DataHandler import ImgManifest 
+from DataHandler import ImgManifest
 from uuid import uuid4
 import json
 import requests
+import argparse
+
 
 class ClientManifest(ImgManifest):
 
@@ -173,8 +175,55 @@ class FrameRequestHandler:
         return manifest_text
 
 
+def setup_argHandler():
+
+    parser = argparse.ArgumentParser(description='Short sample app')
+
+    parser.add_argument('-u','--update', action="store_true", default=False)
+
+    return parser.parse_args()
+
+
+def dl_all_images(frame, manifest=None):
+    status = False
+
+    if manifest not None:
+        for img in manifest['data']:
+           image_binary = requester.download_image(img)
+           frame.save_image(img,image_binary)
+
+
+def update():
+
+    frame = FrameClient()
+    requester = FrameRequestHandler(frame.frameID)
+
+    if not requester._is_server_healthy():
+        return
+
+    manifest = ClientManifest(frame.frameID)
+
+    if manifest._filename not None and manifest._manifest_exists(manifest._filename):
+        data = requester.create_manifest()
+        if data != None:
+            manifest.write(data)
+            manifest.write_client_manifest(data)
+            
+
+
+
+
+
+def run(args):
+
+    if(args.update):
+
 if __name__ == "__main__":
 
+
+    args = setup_argHandler()
+
+    '''
     frame = FrameClient()
     print(frame.frameID)
     requester = FrameRequestHandler(frame.frameID)
@@ -192,9 +241,8 @@ if __name__ == "__main__":
         if(manifest._is_new_manifest(newManifest)):
             print("All the things changed!")
             print(manifest._diff_manifests(newManifest))
-        '''
         data = json.loads(manifest.read())
         for img in data['data']:
             image_binary = requester.download_image(img)
             print(frame.save_image(img,image_binary))
-        '''
+    '''
