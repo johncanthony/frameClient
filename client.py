@@ -1,5 +1,5 @@
 import os
-from DataHandler import ImgManifest
+from DataHandler import ImgManifest, DataHandler
 from uuid import uuid4
 import json
 import requests
@@ -57,7 +57,7 @@ class ClientManifest(ImgManifest):
         manifest_files = self_manifest['data'].keys()
         new_manifest_files = new_manifest['data'].keys()
 
-        diffs = {"delete":[],"download":[]}
+        diffs = {}
 
         diffs['delete'] = list( set(manifest_files) - set(new_manifest_files) )
         diffs['download'] = list( set(new_manifest_files) - set(manifest_files) )
@@ -175,53 +175,78 @@ class FrameRequestHandler:
         return manifest_text
 
 
-def setup_argHandler():
-
-    parser = argparse.ArgumentParser(description='Short sample app')
-
-    parser.add_argument('-u','--update', action="store_true", default=False)
-
-    return parser.parse_args()
-
-
-def dl_all_images(frame, manifest=None):
-    status = False
-
-    if manifest not None:
-        for img in manifest['data']:
-           image_binary = requester.download_image(img)
-           frame.save_image(img,image_binary)
-
-
 def update():
 
     frame = FrameClient()
     requester = FrameRequestHandler(frame.frameID)
 
+    print("Checking server health....")
     if not requester._is_server_healthy():
         return
 
     manifest = ClientManifest(frame.frameID)
+    print("Check to make sure manifest exists...")
+    if not manifest._manifest_exists(manifest._filename):
+        return
 
-    if manifest._filename not None and manifest._manifest_exists(manifest._filename):
-        data = requester.create_manifest()
-        if data != None:
-            manifest.write(data)
-            manifest.write_client_manifest(data)
-            
+    print("Downloading manifest from remote...")
+    new_manifest = json.loads(requester.dl_manifest())
 
+    if new_manifest is None:
+        return
 
+    print("Checking manifest for changes....")
+    if not manifest._is_new_manifest(new_manifest):
+        return
 
+    diffs = manifest._diff_manifests(new_manifest)
+    print(diffs)
+
+    manifest.write(new_manifest)
+    manifest.write_client_manifest(new_manifest)
+
+    data_handler = DataHandler(frame.frameID)
+
+    for image_filename in diffs['download']:
+        img_data = requester.download_image(image_filename)
+        frame.save_image(image_filename,img_data)
+
+    for image_filename in diffs['delete']:
+        data_handler.delete_image_file(image_filename)
+
+def download_new_manfiest():
+
+    frame = FrameClient()
+    requester = FrameRequestHandler(frame.frameID)
+    
 
 
 def run(args):
 
-    if(args.update):
+    if args.u:
+        update()
+        return
+    elif args.d:
+        download_new_manifest()
+
+
+def setup_argHandler():
+
+    parser = argparse.ArgumentParser(description='Short sample app')
+
+    parser.add_argument('-u', action="store_true")
+    parser.add_argument('-d', action="store_true")
+
+    return parser.parse_args()
+
+
 
 if __name__ == "__main__":
 
 
     args = setup_argHandler()
+
+    run(args)
 
     '''
     frame = FrameClient()
